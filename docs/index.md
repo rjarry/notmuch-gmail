@@ -1,3 +1,5 @@
+<!-- vim:set ft=markdown: -->
+
 # notmuch-gmail-sync
 
 Bidirectional sync of Gmail messages with notmuch database.
@@ -37,6 +39,9 @@ TODO
 
 * `notmuch-gmail-sync` uses the Gmail web API to change (ADD, REMOVE) your
   Gmail labels.
+
+* `notmuch-gmail-sync` uses the Gmail web API to add (INSERT) new DRAFT and
+  SENT messages.
 
 * `notmuch-gmail-sync` will not and can not:
 
