@@ -18,20 +18,15 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-import io
 import setuptools
-import notmuch_gmail
 
-
-with io.open('README', encoding='utf-8') as f:
-    LONG_DESCRIPTION = f.read()
 
 setuptools.setup(
-    name = 'notmuch-gmail-sync',
-    version = notmuch_gmail.VERSION,
-    description = 'Bidirectional sync of Gmail messages with notmuch database',
-    long_description = LONG_DESCRIPTION,
-    url = 'https://github.com/rjarry/notmuch-gmail-sync',
+    name = 'notmuch-gmail',
+    version = __import__('notmuch_gmail').VERSION,
+    description = 'Bidirectional sync of Gmail messages with a notmuch database',
+    long_description = open('README', encoding='utf-8').read(),
+    url = 'https://github.com/rjarry/notmuch-gmail',
     license = 'MIT',
     author = 'Robin Jarry',
     author_email = 'robin@jarry.cc',
@@ -47,7 +42,6 @@ setuptools.setup(
     ],
     python_requires = '>= 3.3',
     install_requires = [
-        'click',
         'google-api-python-client',
         'oauth2client',
     ],

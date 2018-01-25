@@ -18,7 +18,6 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-import io
 import os
 import datetime
 import re
@@ -84,13 +83,13 @@ def _version():
     try:
         tag = _tag_from_git_describe()
         version = _tag_to_pep440_version(tag)
-        with io.open(os.path.join(HERE, 'VERSION'), 'w') as f:
+        with open(os.path.join(HERE, 'VERSION'), 'w') as f:
             f.write(version)
         return version
     except:
         pass
     try:
-        with io.open(os.path.join(HERE, 'VERSION'), 'r') as f:
+        with open(os.path.join(HERE, 'VERSION'), 'r') as f:
             version = f.read()
         return version.strip()
     except:
