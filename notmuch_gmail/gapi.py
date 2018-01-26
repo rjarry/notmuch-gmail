@@ -251,19 +251,25 @@ class GmailAPI(object):
             remote_tags = remote_msg['tags']
             add_tags = local_tags - remote_tags
             rm_tags = remote_tags - local_tags
-            add_lids = []
-            rm_lids = []
+            add_lids = set()
+            rm_lids = set()
 
             for tags, lids in (add_tags, add_lids), (rm_tags, rm_lids):
                 for t in tags:
                     label = self.config.tags_translate.get(t, t)
                     if label in self.label_ids:
-                        lids.append(self.label_ids.get(label))
+                        lids.add(self.label_ids.get(label))
                     else:
-                        lids.append(self.create_label(label))
+                        lids.add(self.create_label(label))
+
+            if add_lids >= {'TRASH', 'INBOX'} or add_lids >= {'SPAM', 'INBOX'}:
+                add_lids.discard('INBOX')
+            elif add_lids >= {'TRASH', 'SPAM'}:
+                add_lids.discard('SPAM')
 
             if add_lids or rm_lids:
-                op = {'addLabelIds': add_lids, 'removeLabelIds': rm_lids}
+                op = {'addLabelIds': list(add_lids),
+                      'removeLabelIds': list(rm_lids)}
                 modify_ops[gmail_id] = op
                 LOG.info(counter + ' message %r %s',
                          n, n_updated, gmail_id, op)
