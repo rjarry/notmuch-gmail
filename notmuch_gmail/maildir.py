@@ -23,6 +23,8 @@ import logging
 import os
 import re
 
+from notmuch.errors import NotmuchError
+
 
 LOG = logging.getLogger(__name__)
 
@@ -120,3 +122,21 @@ class Maildir(object):
                 db.end_atomic()
                 LOG.info(counter + ' message %r tags %s updated',
                          n, n_updated, gmail_id, tags)
+
+    def delete(self, remote_deleted):
+        n_deleted = len(remote_deleted)
+        counter = '[%{0}d/%{0}d]'.format(len(str(n_deleted)))
+        n = 0
+        with self.config.notmuch_db() as db:
+            for gmail_id in remote_deleted:
+                n += 1
+                fpath = os.path.join(self.new_dir, 'gmail.{}:2,'.format(gmail_id))
+                try:
+                    db.remove_message(fpath)
+                except NotmuchError as e:
+                    LOG.warning('Message %r: %s', fpath, e)
+
+                if os.path.isfile(fpath):
+                    os.unlink(fpath)
+
+                LOG.info(counter + ' message %r deleted', n, n_deleted, gmail_id)

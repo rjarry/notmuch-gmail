@@ -213,6 +213,10 @@ class NotmuchGmailSync(object):
         LOG.info('Applying remote tag changes...')
         self.mdir.apply_tags(remote_updated)
 
+    def delete(self, remote_deleted):
+        LOG.info('Deleting local messages...')
+        self.mdir.delete(remote_deleted)
+
     def run(self):
         # only create user readable/writable files and folders
         os.umask(0o077)
@@ -231,7 +235,7 @@ class NotmuchGmailSync(object):
         self.merge(changes.l_updated, changes.r_updated)
         # TODO: push sent/drafts & delete
         # self.push(changes.l_new)
-        # self.delete(changes.r_deleted)
+        self.delete(changes.r_deleted)
 
 #------------------------------------------------------------------------------
 def main():
