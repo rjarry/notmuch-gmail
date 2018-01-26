@@ -61,17 +61,6 @@ def parse_args():
         help='Ignore existing credentials and force re-authentication',
         )
     parser.add_argument(
-        '--local-wins',
-        default=False,
-        action='store_true',
-        help='''
-        In case of conflicting changes between local and remote (tags/labels
-        changed on both sides on the same messages), favor the local version
-        and replace the remote version with it. By default, remote side (Gmail)
-        wins.
-        ''',
-        )
-    parser.add_argument(
         '--defconfig',
         action='store_true',
         default=False,
@@ -106,14 +95,12 @@ class Changes(object):
 #------------------------------------------------------------------------------
 class NotmuchGmailSync(object):
 
-    def __init__(self, config_filepath, force_reauth=False,
-                 no_browser=False, local_wins=False):
+    def __init__(self, config_filepath, force_reauth=False, no_browser=False):
         self.config = Config(config_filepath)
         self.api = GmailAPI(self.config)
         self.mdir = Maildir(self.config)
         self.force_reauth = force_reauth
         self.no_browser = no_browser
-        self.local_wins = local_wins
 
     def auth(self):
         LOG.info('Authorizing connection...')
@@ -210,8 +197,8 @@ class NotmuchGmailSync(object):
         conflicts = local_updated.keys() & remote_updated.keys()
         if conflicts:
             LOG.info('Found %d conflicts', len(conflicts))
-            if self.local_wins:
-                LOG.info('Dropping %d remote changes (--local-wins)',
+            if self.config.local_wins and self.config.push_local_tags:
+                LOG.info('Dropping %d remote changes (local_wins=True)',
                          len(conflicts))
                 for c in conflicts:
                     del remote_updated[c]
@@ -220,8 +207,9 @@ class NotmuchGmailSync(object):
                 for c in conflicts:
                     del local_updated[c]
 
-        LOG.info('Pushing local tag changes...')
-        self.api.push_tags(local_updated)
+        if self.config.push_local_tags:
+            LOG.info('Pushing local tag changes...')
+            self.api.push_tags(local_updated)
         LOG.info('Applying remote tag changes...')
         self.mdir.apply_tags(remote_updated)
 

@@ -50,6 +50,10 @@ class Config(object):
         self.status_dir = os.path.join(
             self.notmuch_db_dir, os.path.expanduser(self.status_dir))
 
+        self.push_local_tags = parser.getboolean(
+            'core', 'push_local_tags', fallback=True)
+        self.local_wins = parser.getboolean(
+            'core', 'local_wins', fallback=False)
         self.upload_drafts = parser.getboolean(
             'core', 'upload_drafts', fallback=True)
         self.upload_sent = parser.getboolean(
@@ -166,6 +170,15 @@ class Config(object):
 # OAuth2 credentials and synchronization cache. Any relative path will be
 # resolved against the notmuch_db path.
 #status_dir = ./.notmuch-gmail
+
+# Push local tag changes to Gmail. If set to False, any local modification will
+# be overwritten by remote changes (ignoring the local_wins option).
+#push_local_tags = True
+
+# In case of conflicting changes between local and remote (tags/labels changed
+# on both sides on the same messages), favor the local version and replace the
+# remote version with it. By default, remote side (Gmail) wins.
+#local_wins = False
 
 # Upload local messages tagged as "draft" as Gmail DRAFT messages.
 #upload_drafts = True
