@@ -138,6 +138,7 @@ class GmailAPI(object):
         updated = {}
         new = set()
         deleted = set()
+        new_history_id = last_history_id
 
         def update(msg):
             i = msg['id']
@@ -169,7 +170,10 @@ class GmailAPI(object):
             }
 
         for changes in self._history(last_history_id):
-            for ch in changes:
+            i = int(changes.get('historyId', 0))
+            if i > new_history_id:
+                new_history_id = i
+            for ch in changes['history']:
                 for field, callback in callbacks.items():
                     for item in ch.get(field, []):
                         try:
@@ -177,14 +181,12 @@ class GmailAPI(object):
                         except NoSyncError:
                             pass
 
-        return updated, new, deleted
+        return updated, new, deleted, new_history_id
 
     def _history(self, start_id):
-        fields = 'messagesAdded,messagesDeleted,labelsAdded,labelsDeleted'
-
         try:
             response = self.service.users().history().list(
-                userId='me', startHistoryId=start_id, fields=fields).execute()
+                userId='me', startHistoryId=start_id).execute()
         except HttpError as e:
             if e.resp.status == 404:
                 raise GAPIError('start_id is too old') from e
@@ -192,16 +194,15 @@ class GmailAPI(object):
                 raise
 
         if 'history' in response:
-            yield response['history']
+            yield response
 
         while 'nextPageToken' in response:
             tok = response['nextPageToken']
             response = self.service.users().history().list(
-                userId='me', startHistoryId=start_id,
-                fields=fields, pageToken=tok).execute()
+                userId='me', startHistoryId=start_id, pageToken=tok).execute()
 
             if 'history' in response:
-                yield response['history']
+                yield response
 
     def all_ids(self):
         q = ' '.join('-in:%s' % l for l in self.config.no_sync_labels)
@@ -225,7 +226,7 @@ class GmailAPI(object):
                 yield response['resultSizeEstimate'], ids
 
     def get_content(self, gmail_ids, msg_callback, fmt='minimal'):
-        fields = 'id,labelIds'
+        fields = 'id,labelIds,historyId'
         if fmt == 'raw':
             fields += ',internalDate,raw,sizeEstimate'
 
@@ -284,21 +285,26 @@ class GmailAPI(object):
         items = {i: {} for i in local_updated}
         self._batch(items, req_template, callback_fetch)
 
+        history_id = 0
         n_ops = len(modify_ops)
         LOG.info('Pushing label changes...', n_ops)
         counter = '[%{0}d/%{0}d]'.format(len(str(n_updated)))
         n = 0
         def callback_push(msg):
-            nonlocal n
+            nonlocal n, history_id
             n += 1
+            if int(msg['historyId']) > history_id:
+                history_id = int(msg['historyId'])
             LOG.info(counter + ' message %r labels updated',
                      n, n_ops, msg['id'])
 
         req_template = functools.partial(
             self.service.users().messages().modify,
-            userId='me', fields='id',
+            userId='me', fields='id,historyId',
             )
         self._batch(modify_ops, req_template, callback_push)
+
+        return history_id
 
     def _batch(self, items, req_template, msg_callback):
 

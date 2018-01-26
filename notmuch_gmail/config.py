@@ -120,7 +120,9 @@ class Config(object):
     def get_last_history_id(self):
         try:
             with open(self.history_id_file) as f:
-                return int(f.read().strip())
+                last_history_id = int(f.read().strip())
+            os.unlink(self.history_id_file)
+            return last_history_id
         except (FileNotFoundError, ValueError):
             return None
 
@@ -137,11 +139,13 @@ class Config(object):
         except (FileNotFoundError, ValueError):
             return None
 
-    def update_last_notmuch_rev(self, notmuch_rev):
+    def update_last_notmuch_rev(self):
         if not os.path.isdir(self.status_dir):
             os.makedirs(self.status_dir)
         with open(self.notmuch_rev_file, 'w') as f:
-            f.write(str(notmuch_rev))
+            with self.notmuch_db() as db:
+                rev, _ = db.get_revision()
+                f.write(str(rev))
 
     def notmuch_db(self):
         if os.path.isdir(os.path.join(self.notmuch_db_dir, '.notmuch')):

@@ -85,12 +85,14 @@ class HistoryError(Exception):
 
 #------------------------------------------------------------------------------
 class Changes(object):
-    def __init__(self, l_updated, l_new, r_updated, r_new, r_deleted):
+    def __init__(self, l_updated, l_new,
+                 r_updated, r_new, r_deleted, history_id):
         self.l_updated = l_updated
         self.l_new = l_new
         self.r_updated = r_updated
         self.r_new = r_new
         self.r_deleted = r_deleted
+        self.history_id = history_id
 
 #------------------------------------------------------------------------------
 class NotmuchGmailSync(object):
@@ -109,14 +111,14 @@ class NotmuchGmailSync(object):
             self.api.authenticate(self.no_browser)
         self.api.authorize()
 
-    def changes_incremental(self):
-        last_history_id = self.config.get_last_history_id()
+    def changes_incremental(self, last_history_id):
         if last_history_id is None:
             raise HistoryError('No history yet')
 
         LOG.info('Fetching last changes from Gmail...')
         try:
-            r_updated, r_new, r_deleted = self.api.get_changes(last_history_id)
+            r_updated, r_new, r_deleted, new_history_id = \
+                self.api.get_changes(last_history_id)
         except GAPIError:
             raise HistoryError('Last known history is too old')
 
@@ -124,7 +126,8 @@ class NotmuchGmailSync(object):
         l_updated, l_new = self.mdir.get_changes()
 
         return Changes(l_updated=l_updated, l_new=l_new,
-                       r_updated=r_updated, r_new=r_new, r_deleted=r_deleted)
+                       r_updated=r_updated, r_new=r_new, r_deleted=r_deleted,
+                       history_id=new_history_id)
 
     def changes_full(self):
         LOG.info('Detecting changed local messages...')
@@ -160,9 +163,12 @@ class NotmuchGmailSync(object):
 
         counter = '[%{0}d/%{0}d]'.format(len(str(num_local)))
         n = 0
+        new_history_id = 0
         def callback(msg):
-            nonlocal n
+            nonlocal n, new_history_id
             n += 1
+            if int(msg['historyId']) > new_history_id:
+                new_history_id = int(msg['historyId'])
             if all_local[msg['id']] == msg['tags']:
                 LOG.info(counter + ' message %r not changed',
                          n, num_local, msg['id'])
@@ -175,7 +181,8 @@ class NotmuchGmailSync(object):
         self.api.get_content(local_ids, callback)
 
         return Changes(l_updated=l_updated, l_new=l_new,
-                       r_updated=r_updated, r_new=r_new, r_deleted=r_deleted)
+                       r_updated=r_updated, r_new=r_new, r_deleted=r_deleted,
+                       history_id=new_history_id)
 
     def fetch(self, new_ids):
         LOG.info('Fetching new messages...')
@@ -183,13 +190,17 @@ class NotmuchGmailSync(object):
         num_new = len(new_ids)
         counter = '[%{0}d/%{0}d]'.format(len(str(num_new)))
         n = 0
+        new_history_id = 0
         def callback(msg):
-            nonlocal n
-            self.mdir.store_and_index(msg)
+            nonlocal n, new_history_id
             n += 1
+            if int(msg['historyId']) > new_history_id:
+                new_history_id = int(msg['historyId'])
+            self.mdir.store_and_index(msg)
             size = human_size(msg['sizeEstimate'])
             LOG.info(counter + ' fetched message %r %s', n, num_new, msg['id'], size)
         self.api.get_content(new_ids, callback, fmt='raw')
+        return new_history_id
 
     def merge(self, local_updated, remote_updated):
         LOG.info('Resolving conflicts...')
@@ -207,11 +218,16 @@ class NotmuchGmailSync(object):
                 for c in conflicts:
                     del local_updated[c]
 
-        if self.config.push_local_tags:
+        history_id = 0
+
+        if self.config.push_local_tags and local_updated:
             LOG.info('Pushing local tag changes...')
-            self.api.push_tags(local_updated)
-        LOG.info('Applying remote tag changes...')
-        self.mdir.apply_tags(remote_updated)
+            history_id = self.api.push_tags(local_updated)
+        if remote_updated:
+            LOG.info('Applying remote tag changes...')
+            self.mdir.apply_tags(remote_updated)
+
+        return history_id
 
     def delete(self, remote_deleted):
         LOG.info('Deleting local messages...')
@@ -225,17 +241,29 @@ class NotmuchGmailSync(object):
         LOG.info('Fetching Gmail labels...')
         self.api.update_labels()
 
+        last_history_id = self.config.get_last_history_id()
         try:
-            changes = self.changes_incremental()
+            changes = self.changes_incremental(last_history_id)
         except HistoryError as e:
             LOG.info('%s. A full sync is required.', e)
             changes = self.changes_full()
 
-        self.fetch(changes.r_new)
-        self.merge(changes.l_updated, changes.r_updated)
+        if changes.r_new:
+            i = self.fetch(changes.r_new)
+            if i > changes.history_id:
+                changes.history_id = i
+
+        if changes.l_updated or changes.r_updated:
+            i = self.merge(changes.l_updated, changes.r_updated)
+            if i > changes.history_id:
+                changes.history_id = i
+
         # TODO: push sent/drafts & delete
-        # self.push(changes.l_new)
+        #self.push(changes.l_new)
         self.delete(changes.r_deleted)
+
+        self.config.update_last_history_id(changes.history_id)
+        self.config.update_last_notmuch_rev()
 
 #------------------------------------------------------------------------------
 def main():
