@@ -130,7 +130,7 @@ class GmailAPI(object):
             tag = self.config.labels_translate.get(label, label)
             if tag in self.config.ignore_tags:
                 continue
-            tags.append(tag)
+            tags.add(tag)
 
         return tags
 

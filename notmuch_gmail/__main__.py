@@ -278,7 +278,7 @@ def main():
 
         sync = NotmuchGmailSync(
             args.config, force_reauth=args.force_reauth,
-            no_browser=args.no_browser, local_wins=args.local_wins)
+            no_browser=args.no_browser)
 
         sync.run()
 
