@@ -138,7 +138,6 @@ class GmailAPI(object):
         updated = {}
         new = set()
         deleted = set()
-        new_history_id = last_history_id
 
         def update(msg):
             i = msg['id']
@@ -170,9 +169,8 @@ class GmailAPI(object):
             }
 
         for changes in self._history(last_history_id):
-            i = int(changes.get('historyId', 0))
-            if i > new_history_id:
-                new_history_id = i
+            last_history_id = max(
+                int(changes.get('historyId', 0)), last_history_id)
             for ch in changes['history']:
                 for field, callback in callbacks.items():
                     for item in ch.get(field, []):
@@ -181,7 +179,7 @@ class GmailAPI(object):
                         except NoSyncError:
                             pass
 
-        return updated, new, deleted, new_history_id
+        return updated, new, deleted, last_history_id
 
     def _history(self, start_id):
         try:
@@ -293,10 +291,8 @@ class GmailAPI(object):
         def callback_push(msg):
             nonlocal n, history_id
             n += 1
-            if int(msg['historyId']) > history_id:
-                history_id = int(msg['historyId'])
-            LOG.info(counter + ' message %r labels updated',
-                     n, n_ops, msg['id'])
+            history_id = max(int(msg['historyId']), history_id)
+            LOG.info(counter + ' message %r labels updated', n, n_ops, msg['id'])
 
         req_template = functools.partial(
             self.service.users().messages().modify,
