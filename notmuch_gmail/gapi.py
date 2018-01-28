@@ -254,6 +254,7 @@ class GmailAPI(object):
             rm_lids = set()
 
             for tags, lids in (add_tags, add_lids), (rm_tags, rm_lids):
+                tags -= self.config.ignore_tags
                 for t in tags:
                     label = self.config.tags_translate.get(t, t)
                     if label in self.label_ids:

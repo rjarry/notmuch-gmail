@@ -71,7 +71,10 @@ class Config(object):
             CATEGORY_SOCIAL
             CATEGORY_UPDATES''').split())
         self.ignore_tags = set(parser.get(
-            'ignore_labels', 'local', fallback='new').split())
+            'ignore_labels', 'local', fallback='''
+            attachment
+            new
+            signed''').split())
 
         self.labels_translate = {
             'INBOX': 'inbox',
@@ -209,7 +212,9 @@ class Config(object):
 
 # Ignore the following notmuch tags (synchronize the messages without them).
 #local =
+#\tattachment
 #\tnew
+#\tsigned
 
 [labels_translate]
 # Convert Gmail labels to notmuch tags (and vice versa).
