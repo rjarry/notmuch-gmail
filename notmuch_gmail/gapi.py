@@ -341,6 +341,7 @@ class GmailAPI(object):
             try:
                 batch.execute(http=self.http)
 
+                good_batches += 1
                 if good_batches >= 10:
                     pause = pause // 2
                     batch_size = min(batch_size * 2, max_batch_size)
