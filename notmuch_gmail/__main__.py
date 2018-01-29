@@ -194,14 +194,23 @@ class NotmuchGmailSync(object):
         counter = '[%{0}d/%{0}d]'.format(len(str(num_new)))
         n = 0
         last_history_id = 0
+        batch = {}
         def callback(msg):
             nonlocal n, last_history_id
             n += 1
             last_history_id = max(int(msg['historyId']), last_history_id)
-            self.mdir.store_and_index(msg)
+            msg_path = self.mdir.store(msg)
             size = human_size(msg['sizeEstimate'])
             LOG.info(counter + ' fetched message %r %s', n, num_new, msg['id'], size)
+            batch[msg_path] = msg['tags']
+            if len(batch) == self.config.index_batch_size:
+                LOG.info('Updating index with %d new messages...', len(batch))
+                self.mdir.index(batch)
+                batch.clear()
         self.api.get_content(new_ids, callback, fmt='raw')
+        if batch:
+            LOG.info('Updating index with %d new messages...', len(batch))
+            self.mdir.index(batch)
         return last_history_id
 
     def merge(self, local_updated, remote_updated):

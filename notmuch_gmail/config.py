@@ -59,7 +59,9 @@ class Config(object):
         self.upload_sent = parser.getboolean(
             'core', 'upload_sent', fallback=False)
         self.http_timeout = parser.getint(
-            'core', 'http_timeout', fallback=5) or None
+            'core', 'http_timeout', fallback=10) or None
+        self.index_batch_size = parser.getint(
+            'core', 'index_batch_size', fallback=1000)
 
         self.no_sync_labels = set(parser.get(
             'ignore_labels', 'no_sync', fallback='CHATS').split())
@@ -71,10 +73,7 @@ class Config(object):
             CATEGORY_SOCIAL
             CATEGORY_UPDATES''').split())
         self.ignore_tags = set(parser.get(
-            'ignore_labels', 'local', fallback='''
-            attachment
-            new
-            signed''').split())
+            'ignore_labels', 'local', fallback='attachment new signed').split())
 
         self.labels_translate = {
             'INBOX': 'inbox',
@@ -195,7 +194,15 @@ class Config(object):
 #upload_sent = False
 
 # Socket timeout in seconds. 0 means use system's default system socket timeout.
-#http_timeout = 5
+#http_timeout = 10
+
+# Number of messages to add to notmuch index at once. Notmuch indexing for
+# new messages is very CPU and IO intensive. Doing it on several messages at
+# once can speed up the process but if there is a network error or if you
+# interrupt the process, you need to download all the messages of the last
+# batch again. This mostly affects the initial sync where there are a lot of
+# new messages to index.
+#index_batch_size = 1000
 
 [ignore_labels]
 # Do not synchronize messages that have these Gmail labels.

@@ -68,7 +68,7 @@ class Maildir(object):
 
         return gmail, local
 
-    def store_and_index(self, gmail_msg):
+    def store(self, gmail_msg):
         filename = 'gmail.{id}:2,'.format(**gmail_msg)
 
         tmp_path = os.path.join(self.tmp_dir, filename)
@@ -90,14 +90,16 @@ class Maildir(object):
         except:
             pass
 
+        return msg_path
+
+    def index(self, messages):
         with self.config.notmuch_db() as db:
-            db.begin_atomic()
-            msg, _ = db.add_message(msg_path)
-            msg.freeze()
-            for tag in gmail_msg['tags']:
-                msg.add_tag(tag)
-            msg.thaw()
-            db.end_atomic()
+            for msg_path, tags in messages.items():
+                msg, _ = db.add_message(msg_path, sync_maildir_flags=False)
+                msg.freeze()
+                for tag in tags:
+                    msg.add_tag(tag, sync_maildir_flags=False)
+                msg.thaw()
 
     def apply_tags(self, remote_updated):
         n_updated = len(remote_updated)
@@ -113,13 +115,11 @@ class Maildir(object):
                         counter + ' message %r not found in notmuch db',
                         n, n_updated, fname)
                     continue
-                db.begin_atomic()
                 msg.freeze()
-                msg.remove_all_tags()
+                msg.remove_all_tags(sync_maildir_flags=False)
                 for tag in tags:
-                    msg.add_tag(tag)
+                    msg.add_tag(tag, sync_maildir_flags=False)
                 msg.thaw()
-                db.end_atomic()
                 LOG.info(counter + ' message %r tags %s updated',
                          n, n_updated, gmail_id, tags)
 
