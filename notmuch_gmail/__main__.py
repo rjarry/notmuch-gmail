@@ -29,7 +29,7 @@ import os
 from .config import Config
 from .gapi import GmailAPI, GAPIError
 from .maildir import Maildir
-from .util import human_size, configure_logging
+from .util import human_size, configure_logging, PIDFile
 
 
 LOG = logging.getLogger(__name__)
@@ -288,8 +288,13 @@ def main():
             args.config, force_reauth=args.force_reauth,
             no_browser=args.no_browser)
 
-        sync.run()
+        with PIDFile(sync.config):
+            sync.run()
 
+        return 0
+
+    except PIDFile.AlreadyRunning as e:
+        LOG.info('Another instance is already running: %s', e)
         return 0
 
     except (EOFError, KeyboardInterrupt):

@@ -19,6 +19,7 @@
 # SOFTWARE.
 
 import logging.config
+import os
 
 
 #------------------------------------------------------------------------------
@@ -77,3 +78,41 @@ def configure_logging(verbose=0):
     logging.addLevelName(logging.WARNING, 'W')
     logging.addLevelName(logging.INFO, 'I')
     logging.addLevelName(logging.DEBUG, 'D')
+
+#------------------------------------------------------------------------------
+class PIDFile(object):
+
+    class AlreadyRunning(Exception):
+        pass
+
+    def __init__(self, config):
+        self.filepath = os.path.join(config.status_dir, 'pidfile')
+
+    def create(self):
+        dirname = os.path.dirname(self.filepath)
+        if not os.path.isdir(dirname):
+            os.makedirs(dirname)
+
+        try:
+            with open(self.filepath, 'r') as f:
+                other_pid = int(f.readline().strip())
+            os.kill(other_pid, 0)
+        except:
+            other_pid = None
+
+        if other_pid is not None:
+            raise self.AlreadyRunning('PID=%d' % other_pid)
+
+        with open(self.filepath, 'w') as f:
+            f.write('%d\n' % os.getpid())
+
+    def close(self):
+        if os.path.isfile(self.filepath):
+            os.unlink(self.filepath)
+
+    def __enter__(self):
+        self.create()
+        return self
+
+    def __exit__(self, exc_type=None, exc_value=None, exc_tb=None):
+        self.close()
