@@ -37,13 +37,13 @@ def human_size(size):
         return size
 
 #------------------------------------------------------------------------------
-def configure_logging(verbose=False):
+def configure_logging(verbose=0):
     logging.config.dictConfig({
         'version': 1,
         'reset_existing_loggers': True,
         'formatters': {
             'simple': {
-                'format': '%(asctime)s %(message)s',
+                'format': '%(asctime)s %(levelname)s %(message)s',
                 'datefmt': '%H:%M:%S',
             },
         },
@@ -57,18 +57,23 @@ def configure_logging(verbose=False):
         },
         'root': {
             'handlers': ['stdout'],
-            'level': 'DEBUG' if verbose else 'INFO',
+            'level': 'DEBUG' if verbose > 0 else 'INFO',
         },
         'loggers': {
             'notmuch_gmail': {
                 'handlers': ['stdout'],
-                'level': 'DEBUG' if verbose else 'INFO',
+                'level': 'DEBUG' if verbose > 0 else 'INFO',
                 'propagate': False,
             },
             'googleapiclient': {
                 'handlers': ['stdout'],
-                'level': 'DEBUG' if verbose else 'WARNING',
+                'level': 'DEBUG' if verbose > 1 else 'WARNING',
                 'propagate': False,
             },
         },
     })
+
+    logging.addLevelName(logging.ERROR, 'E')
+    logging.addLevelName(logging.WARNING, 'W')
+    logging.addLevelName(logging.INFO, 'I')
+    logging.addLevelName(logging.DEBUG, 'D')

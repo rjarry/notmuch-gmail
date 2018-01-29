@@ -72,9 +72,12 @@ def parse_args():
         )
     parser.add_argument(
         '-v', '--verbose',
-        default=False,
-        action='store_true',
-        help='Be more verbose',
+        default=0,
+        action='count',
+        help='''
+        Be more verbose.
+        This option may be used up to 2 times to log more details.
+        ''',
         )
 
     return parser.parse_args()

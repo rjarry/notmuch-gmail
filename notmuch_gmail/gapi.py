@@ -108,6 +108,7 @@ class GmailAPI(object):
             self.label_ids[label['name']] = label['id']
 
     def create_label(self, name):
+        LOG.debug('Creating new Gmail label %r...', name)
         response = self.service.users().labels().create(
             userId='me', name=name, labelListVisibility='labelShow',
             messageListVisibility='show').execute()
@@ -262,10 +263,11 @@ class GmailAPI(object):
                     else:
                         lids.add(self.create_label(label))
 
-            if add_lids >= {'TRASH', 'INBOX'} or add_lids >= {'SPAM', 'INBOX'}:
-                add_lids.discard('INBOX')
-            elif add_lids >= {'TRASH', 'SPAM'}:
+            if 'TRASH' in add_lids:
                 add_lids.discard('SPAM')
+                add_lids.discard('INBOX')
+            elif 'SPAM' in add_lids:
+                add_lids.discard('INBOX')
 
             if add_lids or rm_lids:
                 op = {'addLabelIds': list(add_lids),
@@ -310,8 +312,8 @@ class GmailAPI(object):
                 try:
                     message['tags'] = self._message_tags(message)
                     msg_callback(message)
-                except NoSyncError:
-                    pass
+                except NoSyncError as e:
+                    LOG.debug('%s', e)
             else:
                 if isinstance(err, HttpError) and err.resp.status in (400, 404):
                     pass  # bad message request, ignore
@@ -323,6 +325,8 @@ class GmailAPI(object):
         good_batches = conn_errors = pause = 0
 
         while items:
+            LOG.debug('Sending batch request: size=%d, pause=%ds', batch_size, pause)
+
             if pause > 0:
                 time.sleep(pause)
 
@@ -337,7 +341,7 @@ class GmailAPI(object):
             try:
                 batch.execute(http=self.http)
 
-                if good_batches > 10:
+                if good_batches >= 10:
                     pause = pause // 2
                     batch_size = max(batch_size * 2, max_batch_size)
                     good_batches = 0
@@ -349,6 +353,7 @@ class GmailAPI(object):
                     pause = max(1 + pause * 2, 30)
                     # reduce batch size
                     batch_size = min(batch_size // 2, 1)
+                    LOG.debug('Server response: %s', e)
                 else:
                     raise
 
@@ -357,3 +362,4 @@ class GmailAPI(object):
                 if conn_errors > 10:
                     raise
                 pause = 1 + pause * 2
+                LOG.debug('Connection error: %s', e)
