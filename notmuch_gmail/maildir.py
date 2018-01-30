@@ -108,12 +108,12 @@ class Maildir(object):
         with self.config.notmuch_db() as db:
             for gmail_id, tags in remote_updated.items():
                 n += 1
-                fname = 'gmail.{}:2,'.format(gmail_id)
-                msg = db.find_message_by_filename(fname)
+                fpath = os.path.join(self.new_dir, 'gmail.{}:2,'.format(gmail_id))
+                msg = db.find_message_by_filename(fpath)
                 if msg is None:
                     LOG.warning(
                         counter + ' message %r not found in notmuch db',
-                        n, n_updated, fname)
+                        n, n_updated, fpath)
                     continue
                 msg.freeze()
                 msg.remove_all_tags(sync_maildir_flags=False)
