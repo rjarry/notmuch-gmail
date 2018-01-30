@@ -38,8 +38,8 @@ def human_size(size):
         return size
 
 #------------------------------------------------------------------------------
-def configure_logging(verbose=0):
-    logging.config.dictConfig({
+def configure_logging(verbose=0, logfile=None):
+    conf = {
         'version': 1,
         'reset_existing_loggers': True,
         'formatters': {
@@ -48,36 +48,49 @@ def configure_logging(verbose=0):
                 'datefmt': '%H:%M:%S',
             },
         },
-        'handlers': {
+        'root': {
+            'level': 'DEBUG' if verbose > 0 else 'INFO',
+        },
+        'loggers': {
+            'notmuch_gmail': {
+                'level': 'DEBUG' if verbose > 0 else 'INFO',
+            },
+            'googleapiclient': {
+                'level': 'DEBUG' if verbose > 1 else 'WARNING',
+            },
+        },
+    }
+
+    if logfile is not None:
+        conf['handlers'] = {
+            'file': {
+                'class': 'logging.handlers.TimedRotatingFileHandler',
+                'filename': logfile,
+                'formatter': 'simple',
+                'when': 'midnight',
+                'delay': True,
+                'backupCount': 2,
+                'encoding': 'utf-8',
+            },
+        }
+        conf['root']['handlers'] = ['file']
+
+    else:
+        conf['handlers'] = {
             'stdout': {
                 'class': 'logging.StreamHandler',
                 'stream': 'ext://sys.stdout',
                 'formatter': 'simple',
                 'level': 'DEBUG',
             },
-        },
-        'root': {
-            'handlers': ['stdout'],
-            'level': 'DEBUG' if verbose > 0 else 'INFO',
-        },
-        'loggers': {
-            'notmuch_gmail': {
-                'handlers': ['stdout'],
-                'level': 'DEBUG' if verbose > 0 else 'INFO',
-                'propagate': False,
-            },
-            'googleapiclient': {
-                'handlers': ['stdout'],
-                'level': 'DEBUG' if verbose > 1 else 'WARNING',
-                'propagate': False,
-            },
-        },
-    })
+        }
+        conf['root']['handlers'] = ['stdout']
+        logging.addLevelName(logging.ERROR, 'E')
+        logging.addLevelName(logging.WARNING, 'W')
+        logging.addLevelName(logging.INFO, 'I')
+        logging.addLevelName(logging.DEBUG, 'D')
 
-    logging.addLevelName(logging.ERROR, 'E')
-    logging.addLevelName(logging.WARNING, 'W')
-    logging.addLevelName(logging.INFO, 'I')
-    logging.addLevelName(logging.DEBUG, 'D')
+    logging.config.dictConfig(conf)
 
 #------------------------------------------------------------------------------
 class PIDFile(object):

@@ -91,6 +91,14 @@ def parse_args():
         This option may be used up to 2 times to log more details.
         ''',
         )
+    parser.add_argument(
+        '-l', '--logfile',
+        help='''
+        Log all messages to LOGFILE instead of standard output. The file will
+        be rotated automatically each day at midnight and the last 2 days will
+        be kept.
+        ''',
+        )
 
     return parser.parse_args()
 
@@ -123,6 +131,9 @@ class NotmuchGmailSync(object):
         LOG.info('Authorizing connection...')
         credentials = self.config.get_credentials()
         if self.force_reauth or not credentials or credentials.invalid:
+            if not sys.stdin.isatty():
+                raise GAPIError(
+                    'Cannot run authentication, standard input is not a TTY')
             self.api.authenticate(self.no_browser)
         self.api.authorize()
 
@@ -294,7 +305,7 @@ def main():
             print(Config.DEFAULT.strip())
             return 0
 
-        configure_logging(args.verbose)
+        configure_logging(args.verbose, args.logfile)
 
         sync = NotmuchGmailSync(
             args.config, force_reauth=args.force_reauth,
@@ -313,5 +324,5 @@ def main():
         return 2
 
     except GAPIError as e:
-        LOG.error('error: %s', e)
+        LOG.error('%s', e)
         return 1
