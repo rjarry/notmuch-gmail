@@ -109,9 +109,13 @@ class GmailAPI(object):
 
     def create_label(self, name):
         LOG.debug('Creating new Gmail label %r...', name)
+        body = {
+            'name': name,
+            'labelListVisibility': 'labelShow',
+            'messageListVisibility': 'show',
+            }
         response = self.service.users().labels().create(
-            userId='me', name=name, labelListVisibility='labelShow',
-            messageListVisibility='show').execute()
+            userId='me', body=body).execute()
         self.labels[response['id']] = response['name']
         self.label_ids[response['name']] = response['id']
         return response['id']
@@ -237,7 +241,7 @@ class GmailAPI(object):
         items = {i: {} for i in gmail_ids}
         self._batch(items, req_template, msg_callback)
 
-    def push_tags(self, local_updated, msg_callback):
+    def push_tags(self, local_updated):
         LOG.info('Resolving tag changes on local messages...')
         modify_ops = {}
         n_updated = len(local_updated)
@@ -272,7 +276,7 @@ class GmailAPI(object):
             if add_lids or rm_lids:
                 op = {'addLabelIds': list(add_lids),
                       'removeLabelIds': list(rm_lids)}
-                modify_ops[gmail_id] = op
+                modify_ops[gmail_id] = {'body': op}
                 LOG.info(counter + ' message %r %s',
                          n, n_updated, gmail_id, op)
             else:
