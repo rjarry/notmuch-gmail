@@ -25,6 +25,18 @@ Bidirectional sync of Gmail messages with a notmuch database.
 import argparse
 import logging
 import os
+import sys
+
+try:
+    import notmuch
+    del notmuch
+except ImportError:
+    print(' '.join('''
+    ERROR: cannot import notmuch python bindings. They cannot be installed via
+    easy_install nor pip and must be installed either manually or via your
+    distribution's package manager (e.g. apt-get install python3-notmuch).
+    '''.strip().split()), file=sys.stderr)
+    exit(1)
 
 from .config import Config
 from .gapi import GmailAPI, GAPIError
