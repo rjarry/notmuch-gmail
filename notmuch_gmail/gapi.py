@@ -354,10 +354,12 @@ class GmailAPI(object):
 
             except HttpError as e:
                 if e.resp.status in (403, 429):
+                    good_batches = 0
                     # increase pause duration before new batch
                     pause = min(1 + pause * 2, 30)
-                    # reduce batch size
-                    batch_size = max(batch_size // 2, 1)
+                    if e.resp.status == 403:
+                        # reduce batch size
+                        batch_size = 1
                     LOG.debug('Server response: %s', e)
                 else:
                     raise
