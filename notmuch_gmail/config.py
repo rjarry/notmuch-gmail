@@ -19,11 +19,14 @@
 # SOFTWARE.
 
 import configparser
+import logging
 import os
 
 import notmuch
 from oauth2client.file import Storage
 
+
+LOG = logging.getLogger(__name__)
 
 #------------------------------------------------------------------------------
 class Config(object):
@@ -122,8 +125,7 @@ class Config(object):
     def get_last_history_id(self):
         try:
             with open(self.history_id_file) as f:
-                last_history_id = int(f.read().strip())
-            os.unlink(self.history_id_file)
+                last_history_id = int(f.readline().strip())
             return last_history_id
         except (FileNotFoundError, ValueError):
             return None
@@ -132,12 +134,13 @@ class Config(object):
         if not os.path.isdir(self.status_dir):
             os.makedirs(self.status_dir)
         with open(self.history_id_file, 'w') as f:
-            f.write(str(history_id))
+            f.write(str(history_id) + '\n')
+        LOG.debug('Updated last_history_id=%d', history_id)
 
     def get_last_notmuch_rev(self):
         try:
             with open(self.notmuch_rev_file) as f:
-                return int(f.read().strip())
+                return int(f.readline().strip())
         except (FileNotFoundError, ValueError):
             return None
 
@@ -147,7 +150,8 @@ class Config(object):
         with open(self.notmuch_rev_file, 'w') as f:
             with self.notmuch_db() as db:
                 rev, _ = db.get_revision()
-                f.write(str(rev))
+                f.write(str(rev) + '\n')
+        LOG.debug('Updated last_notmuch_rev=%d', rev)
 
     def notmuch_db(self):
         if os.path.isdir(os.path.join(self.notmuch_db_dir, '.notmuch')):

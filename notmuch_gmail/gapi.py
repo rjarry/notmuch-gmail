@@ -174,8 +174,6 @@ class GmailAPI(object):
             }
 
         for changes in self._history(last_history_id):
-            last_history_id = max(
-                int(changes.get('historyId', 0)), last_history_id)
             for ch in changes['history']:
                 for field, callback in callbacks.items():
                     for item in ch.get(field, []):
@@ -184,7 +182,7 @@ class GmailAPI(object):
                         except NoSyncError:
                             pass
 
-        return updated, new, deleted, last_history_id
+        return updated, new, deleted
 
     def _history(self, start_id):
         try:
@@ -290,24 +288,24 @@ class GmailAPI(object):
         items = {i: {} for i in local_updated}
         self._batch(items, req_template, callback_fetch)
 
-        history_id = 0
         n_ops = len(modify_ops)
-        LOG.info('Pushing label changes...', n_ops)
+        LOG.info('Pushing label changes...')
         counter = '[%{0}d/%{0}d]'.format(len(str(n_updated)))
         n = 0
         def callback_push(msg):
-            nonlocal n, history_id
+            nonlocal n
             n += 1
-            history_id = max(int(msg['historyId']), history_id)
             LOG.info(counter + ' message %r labels updated', n, n_ops, msg['id'])
 
         req_template = functools.partial(
             self.service.users().messages().modify,
-            userId='me', fields='id,historyId',
+            userId='me', fields='id',
             )
         self._batch(modify_ops, req_template, callback_push)
 
-        return history_id
+    def history_id(self):
+        response = self.service.users().getProfile(userId='me').execute()
+        return int(response['historyId'])
 
     def _batch(self, items, req_template, msg_callback):
 

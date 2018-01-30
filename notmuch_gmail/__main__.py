@@ -142,24 +142,27 @@ class NotmuchGmailSync(object):
         if last_history_id is None:
             raise HistoryError('No history yet')
 
+        history_id = self.api.history_id()
+
         LOG.info('Fetching last changes from Gmail...')
         try:
-            r_updated, r_new, r_deleted, last_history_id = \
-                self.api.get_changes(last_history_id)
+            r_updated, r_new, r_deleted = self.api.get_changes(last_history_id)
         except GAPIError:
             raise HistoryError('Last known history is too old')
 
-        LOG.info('Detecting local changed messages...')
+        LOG.info('Detecting local changes...')
         l_updated, l_new = self.mdir.get_changes()
 
         return Changes(l_updated=l_updated, l_new=l_new,
                        r_updated=r_updated, r_new=r_new, r_deleted=r_deleted,
-                       history_id=last_history_id)
+                       history_id=history_id)
 
     def changes_full(self):
-        LOG.info('Detecting changed local messages...')
+        LOG.info('Detecting local changes...')
         l_updated, l_new = self.mdir.get_changes()
         all_local = self.mdir.all_messages()
+
+        history_id_start = self.api.history_id()
 
         LOG.info('Fetching all message IDs...')
         batch = 0
@@ -180,6 +183,7 @@ class NotmuchGmailSync(object):
             LOG.info('[batch #%03d] fetched %d IDs, %d new (%s)',
                      batch, len(ids), batch_new, comment)
 
+
         LOG.info('Looking for remote message deletions...')
         r_deleted = r_all - all_local.keys()
         local_ids = all_local.keys() - r_deleted
@@ -190,11 +194,9 @@ class NotmuchGmailSync(object):
 
         counter = '[%{0}d/%{0}d]'.format(len(str(num_local)))
         n = 0
-        last_history_id = 0
         def callback(msg):
-            nonlocal n, last_history_id
+            nonlocal n
             n += 1
-            last_history_id = max(int(msg['historyId']), last_history_id)
             if all_local[msg['id']] == msg['tags']:
                 LOG.info(counter + ' message %r not changed',
                          n, num_local, msg['id'])
@@ -206,9 +208,18 @@ class NotmuchGmailSync(object):
 
         self.api.get_content(local_ids, callback)
 
+        history_id = self.api.history_id()
+        if history_id > history_id_start:
+            # full sync can take a lot of time, make sure to get the changes
+            # that occurred on the remote side while we were downloading
+            updated_d, new_d, deleted_d = self.api.get_changes(history_id_start)
+            r_updated.update(updated_d)
+            r_new.update(new_d)
+            r_deleted.update(deleted_d)
+
         return Changes(l_updated=l_updated, l_new=l_new,
                        r_updated=r_updated, r_new=r_new, r_deleted=r_deleted,
-                       history_id=last_history_id)
+                       history_id=history_id)
 
     def fetch(self, new_ids):
         LOG.info('Fetching new messages...')
@@ -216,12 +227,10 @@ class NotmuchGmailSync(object):
         num_new = len(new_ids)
         counter = '[%{0}d/%{0}d]'.format(len(str(num_new)))
         n = 0
-        last_history_id = 0
         batch = {}
         def callback(msg):
-            nonlocal n, last_history_id
+            nonlocal n
             n += 1
-            last_history_id = max(int(msg['historyId']), last_history_id)
             msg_path = self.mdir.store(msg)
             size = human_size(msg['sizeEstimate'])
             LOG.info(counter + ' fetched message %r %s', n, num_new, msg['id'], size)
@@ -234,34 +243,32 @@ class NotmuchGmailSync(object):
         if batch:
             LOG.info('Updating index with %d new messages...', len(batch))
             self.mdir.index(batch)
-        return last_history_id
 
-    def merge(self, local_updated, remote_updated):
+    def merge(self, changes):
         LOG.info('Resolving conflicts...')
 
-        conflicts = local_updated.keys() & remote_updated.keys()
+        conflicts = changes.l_updated.keys() & changes.r_updated.keys()
         if conflicts:
             LOG.info('Found %d conflicts', len(conflicts))
             if self.config.local_wins and self.config.push_local_tags:
                 LOG.info('Dropping %d remote changes (local_wins=True)',
                          len(conflicts))
                 for c in conflicts:
-                    del remote_updated[c]
+                    del changes.r_updated[c]
             else:
                 LOG.info('Dropping %d local changes', len(conflicts))
                 for c in conflicts:
-                    del local_updated[c]
+                    del changes.l_updated[c]
 
-        history_id = 0
-
-        if self.config.push_local_tags and local_updated:
+        if self.config.push_local_tags and changes.l_updated:
             LOG.info('Pushing local tag changes...')
-            history_id = self.api.push_tags(local_updated)
-        if remote_updated:
+            self.api.push_tags(changes.l_updated)
+            # memorize history_id to avoid pulling back the changes we just
+            # pushed
+            changes.history_id = self.api.history_id()
+        if changes.r_updated:
             LOG.info('Applying remote tag changes...')
-            self.mdir.apply_tags(remote_updated)
-
-        return history_id
+            self.mdir.apply_tags(changes.r_updated)
 
     def delete(self, remote_deleted):
         LOG.info('Deleting local messages...')
@@ -281,13 +288,11 @@ class NotmuchGmailSync(object):
             LOG.info('%s. A full sync is required.', e)
             changes = self.changes_full()
 
-        if changes.r_new:
-            i = self.fetch(changes.r_new)
-            changes.history_id = max(changes.history_id, i)
-
         if changes.l_updated or changes.r_updated:
-            i = self.merge(changes.l_updated, changes.r_updated)
-            changes.history_id = max(changes.history_id, i)
+            self.merge(changes)
+
+        if changes.r_new:
+            self.fetch(changes.r_new)
 
         # TODO: push sent/drafts & delete
         #self.push(changes.l_new)
