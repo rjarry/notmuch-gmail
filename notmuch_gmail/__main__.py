@@ -183,10 +183,13 @@ class NotmuchGmailSync(object):
             LOG.info('[batch #%03d] fetched %d IDs, %d new (%s)',
                      batch, len(ids), batch_new, comment)
 
-
         LOG.info('Looking for remote message deletions...')
-        r_deleted = r_all - all_local.keys()
-        local_ids = all_local.keys() - r_deleted
+        if all_local:
+            r_deleted = r_all - all_local.keys()
+            local_ids = all_local.keys() - r_deleted
+        else:
+            r_deleted = set()
+            local_ids = set()
 
         r_updated = {}
         LOG.info('Fetching remote tags changes for known messages...')
