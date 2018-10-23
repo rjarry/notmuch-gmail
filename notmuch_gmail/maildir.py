@@ -36,6 +36,7 @@ class Maildir(object):
         gmail_dir = os.path.join(self.config.notmuch_db_dir, 'gmail')
         self.tmp_dir = os.path.join(gmail_dir, 'tmp')
         self.new_dir = os.path.join(gmail_dir, 'new')
+        self.cur_dir = os.path.join(gmail_dir, 'cur')
 
     def get_changes(self):
         last_rev = self.config.get_last_notmuch_rev()
@@ -74,6 +75,8 @@ class Maildir(object):
         tmp_path = os.path.join(self.tmp_dir, filename)
         if not os.path.isdir(self.tmp_dir):
             os.makedirs(self.tmp_dir)
+        if not os.path.isdir(self.cur_dir):
+            os.makedirs(self.cur_dir)
 
         msg_bytes = base64.urlsafe_b64decode(gmail_msg['raw'].encode('ascii'))
         with open(tmp_path, 'wb') as f:
