@@ -47,7 +47,7 @@ class Maildir(object):
     def all_messages(self):
         return self._search_notmuch('path:**')[0]
 
-    GMAIL_MESSAGE_RE = re.compile(r'^gmail\.([0-9a-f]+):2,$')
+    GMAIL_MESSAGE_RE = re.compile(r'^gmail\.([0-9a-f]+):2,[PRSTDF]?$')
 
     def _search_notmuch(self, querystring):
         gmail = {}
