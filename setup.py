@@ -25,7 +25,7 @@ setuptools.setup(
     name = 'notmuch-gmail',
     version = __import__('notmuch_gmail').VERSION,
     description = 'Bidirectional sync of Gmail messages with a notmuch database',
-    long_description = open('README', encoding='utf-8').read(),
+    long_description = open('README.md', encoding='utf-8').read(),
     url = 'https://github.com/rjarry/notmuch-gmail',
     license = 'MIT',
     author = 'Robin Jarry',
