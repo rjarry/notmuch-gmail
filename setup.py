@@ -44,6 +44,7 @@ setuptools.setup(
     install_requires = [
         'google-api-python-client',
         'oauth2client',
+        'notmuch',
     ],
     packages = setuptools.find_packages(),
     zip_safe = False,
