@@ -2,7 +2,7 @@
 
 Bidirectional sync of Gmail messages with a notmuch database.
 
-![Logo](logo.svg)
+![Logo](logo.png)
 
 ## Description
 
