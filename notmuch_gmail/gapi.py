@@ -368,3 +368,9 @@ class GmailAPI(object):
                     raise
                 pause = 1 + pause * 2
                 LOG.debug('Connection error: %s', e)
+            except TimeoutError as e:
+                conn_errors += 1
+                if conn_errors > 10:
+                    raise
+                pause = 1 + pause * 2
+                LOG.debug('Timeout error: %s', e)
