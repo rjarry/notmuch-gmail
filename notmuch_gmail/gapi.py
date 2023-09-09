@@ -351,7 +351,8 @@ class GmailAPI(object):
                 conn_errors = 0
 
             except HttpError as e:
-                if e.resp.status in (403, 429):
+                # 5xx per https://developers.google.com/analytics/devguides/reporting/core/v3/errors#handling_500_or_503_responses
+                if e.resp.status in (403, 429, 500, 503):
                     good_batches = 0
                     # increase pause duration before new batch
                     pause = min(1 + pause * 2, 30)
