@@ -345,7 +345,7 @@ class GmailAPI(object):
                     raise err
             del items[req_id]
 
-        batch_size = max_batch_size = 50
+        batch_size = max_batch_size = 5
         good_batches = conn_errors = pause = 0
 
         while items:
