@@ -44,9 +44,31 @@ class NoSyncError(GAPIError):
 class GmailAPI(object):
 
     SCOPE = 'https://www.googleapis.com/auth/gmail.modify'
+    
     # These are not really secret. Only used to identify the application.
-    CLIENT_ID = '504761708784-b77ce00710hrdho8iba9emq6dkqfbvgo.apps.googleusercontent.com'
-    CLIENT_SECRET = '6WjLoK_qUn7mQNZjz6LVI5JT'
+    #CLIENT_ID = '504761708784-b77ce00710hrdho8iba9emq6dkqfbvgo.apps.googleusercontent.com'
+    #CLIENT_SECRET = '6WjLoK_qUn7mQNZjz6LVI5JT'
+    # Head to https://console.developers.google.com1. Create a new project if you don't have one
+    # 1. Go to 'Enable API and services' and select Gmail
+    # 2. Go to credentials and create a new one, by selecting 'Help me choose', select the Gmail API
+    # 3. Go to 'OAuth consent screen'
+    #    3a. Set an application name (e.g. 'notmuch-gmail')
+    #    3b. Update 'Scopes for Google API', by adding:
+    #        Gmail API 	.../auth/gmail.compose	Manage drafts and send emails
+    #        Gmail API 	.../auth/gmail.metadata	View your email message metadata such as labels 
+    #                                           and headers, but not the email body
+    #        Gmail API 	.../auth/gmail.labels	See and edit your email labels
+    #    3d. Test Users, add the gmail account's email as test user
+    # 5. IMPORTANT: you don't need to submit your changes for verification, as
+    #    you're not creating a public App.
+    # 6. Save and go back to Credentials
+    #    6a. Click 'Create credentials'
+    #    6b. Select 'OAuth client ID'
+    #    6c. Select 'Other' as 'Application type' and give it a name.
+    #    6d. Create.
+
+    CLIENT_ID = ### REPLACE WITH YOUR DATA ###
+    CLIENT_SECRET = ### REPLACE WITH YOUR DATA ###
 
     def __init__(self, config):
         self.config = config
